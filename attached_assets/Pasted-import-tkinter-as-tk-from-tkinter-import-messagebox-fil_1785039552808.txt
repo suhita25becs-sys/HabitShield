@@ -1,0 +1,337 @@
+import tkinter as tk
+from tkinter import messagebox, filedialog, ttk
+from screenshot_scanner import scan_screenshot
+from file_scanner import scan_file
+from sms_scanner import scan_sms
+
+def handle_scan_screenshot():
+# Opens a system file dialog to pick an image file
+filepath = filedialog.askopenfilename(
+title="Select Screenshot to Scan",
+filetypes=[("Image Files", ".png;.jpg;.jpeg;.bmp")]
+)
+if filepath:
+try:
+results = scan_screenshot(filepath)
+if results:
+# Format results into a readable list
+output = "\n".join(results)
+messagebox.showwarning("Sensitive Data Found!", f"Warning: The following data was detected:\n\n{output}")
+else:
+messagebox.showinfo("Scan Clean", "No sensitive text patterns (emails or phone numbers) detected.")
+except Exception as e:
+messagebox.showerror("Error", f"Failed to process screenshot:\n{e}")
+
+def handle_scan_file():
+# Opens a system file dialog to pick any file
+filepath = filedialog.askopenfilename(title="Select File for Hash Scanning")
+if filepath:
+try:
+results = scan_file(filepath)
+messagebox.showinfo("File Scan Complete", f"File: {filepath.split('/')[-1]}\n\nSHA256 Hash:\n{results['sha256']}")
+except Exception as e:
+messagebox.showerror("Error", f"Failed to read file:\n{e}")
+
+def handle_scan_sms():
+# Retrieves text from the GUI entry widget
+sms_text = sms_entry.get().strip()
+if not sms_text:
+messagebox.showwarning("Input Required", "Please enter or paste an SMS message to scan.")
+return
+
+result = scan_sms(sms_text)  
+if "Potential scam" in result:  
+    messagebox.showwarning("Security Alert", f"Result: {result}")  
+else:  
+    messagebox.showinfo("Scan Result", f"Result: {result}")
+
+Initialize the main application window
+
+app = tk.Tk()
+app.title("HabitShield Dashboard")
+app.geometry("450x350")
+app.resizable(False, False)
+
+Application Title Label
+
+title_label = tk.Label(app, text="HabitShield Cybersecurity Suite", font=("Arial", 16, "bold"), fg="#1a73e8")
+title_label.pack(pady=15)
+
+--- Screenshot & File Scanner Section ---
+
+scan_frame = tk.LabelFrame(app, text=" File & Media Protection ", padx=10, pady=10)
+scan_frame.pack(fill="x", padx=20, pady=5)
+
+btn_screenshot = tk.Button(scan_frame, text="📸 Scan Screenshot", command=handle_scan_screenshot, width=22, bg="#f1f3f4")
+btn_screenshot.pack(side="left", padx=5, expand=True)
+
+btn_file = tk.Button(scan_frame, text="📁 Scan File (SHA256)", command=handle_scan_file, width=22, bg="#f1f3f4")
+btn_file.pack(side="right", padx=5, expand=True)
+
+--- SMS Scanner Section ---
+
+sms_frame = tk.LabelFrame(app, text=" SMS & Text Phishing Scanner ", padx=10, pady=10)
+sms_frame.pack(fill="x", padx=20, pady=15)
+
+lbl_sms = tk.Label(sms_frame, text="Paste SMS Message Below:")
+lbl_sms.pack(anchor="w", padx=5)
+
+sms_entry = tk.Entry(sms_frame, font=("Arial", 10), width=50)
+sms_entry.pack(fill="x", padx=5, pady=5)
+
+Set a default example message
+
+sms_entry.insert(0, "Verify account and share OTP 1234")
+
+btn_sms = tk.Button(sms_frame, text="🔍 Analyze Message", command=handle_scan_sms, bg="#1a73e8", fg="white", font=("Arial", 10, "bold"))
+btn_sms.pack(fill="x", padx=5, pady=5)
+
+Run the app
+
+app.mainloop()
+import cv2
+import easyocr
+import re
+import numpy as np
+
+Initialize the EasyOCR reader (English language)
+
+reader = easyocr.Reader(['en'], gpu=False)
+
+Target patterns to secure
+
+PATTERNS = {
+'Email': r'[\w.+-]+@[\w.-]+.\w+',
+'Phone': r'\b[6-9]\d{9}\b'
+}
+
+def scan_screenshot(path):
+img = cv2.imread(path)
+if img is None:
+raise FileNotFoundError("Could not open or read the image file.")
+
+res = reader.readtext(path)  
+found = []  
+  
+for b, t, c in res:  
+    for k, p in PATTERNS.items():  
+        if re.search(p, t):  
+            found.append(f"{k}: {t.strip()}")  
+return found
+
+import hashlib
+
+def scan_file(path):
+# Standard 64KB chunk size to read large files safely without crashing RAM
+sha256_hash = hashlib.sha256()
+with open(path, "rb") as f:
+for byte_block in iter(lambda: f.read(65536), b""):
+sha256_hash.update(byte_block)
+
+return {'sha256': sha256_hash.hexdigest()}
+
+def scan_sms(msg):
+m = msg.lower()
+# Scans for urgency and credential theft keywords
+if 'otp' in m or 'verify' in m or 'urgent' in m or 'blocked' in m:
+return 'Potential scam detected'
+return 'Message appears safe'
+
+Replit AI Prompt – Build a Professional HabitShield Project
+
+I have attached the complete source code for my Python project HabitShield Cybersecurity Suite.
+
+Your task is to convert it into a professional Replit project that is clean, modern, and easy to share.
+
+Primary Goal
+
+Create a polished desktop application while keeping 100% of the existing functionality. Do not remove or simplify any features.
+
+Existing Features (Must Keep)
+
+Screenshot Scanner using EasyOCR
+
+Email Detection
+
+Phone Number Detection
+
+SHA-256 File Hash Scanner
+
+SMS Phishing Detection
+
+File Picker
+
+Message Boxes
+
+Error Handling
+
+Tkinter GUI
+
+
+Project Structure
+
+Organize the project like this:
+
+HabitShield/
+│
+├── main.py
+├── screenshot_scanner.py
+├── file_scanner.py
+├── sms_scanner.py
+├── requirements.txt
+├── README.md
+├── assets/
+│   ├── logo.png
+│   └── icons/
+└── screenshots/
+
+Use clean, modular, well-commented code.
+
+User Interface
+
+Redesign the UI to look like a professional cybersecurity application.
+
+Requirements:
+
+Modern dashboard
+
+Blue and white cybersecurity theme
+
+Rounded buttons
+
+Large title
+
+Proper spacing
+
+Professional fonts
+
+Attractive icons
+
+Status indicator
+
+Footer
+
+Better alignment
+
+Card-style sections
+
+Clean layout
+
+Fixed window size
+
+Modern-looking widgets
+
+Consistent styling
+
+
+The interface should look much better than the default Tkinter window.
+
+User Experience
+
+Improve the application by adding:
+
+Loading indicator while scanning
+
+Progress messages
+
+Better success dialogs
+
+Better warning dialogs
+
+Better error dialogs
+
+Helpful instructions
+
+Cleaner scan results
+
+Better button hover effects (where possible)
+
+
+Code Quality
+
+Follow Python best practices
+
+Remove duplicate imports
+
+Improve variable names
+
+Add comments
+
+Keep the code modular
+
+Improve error handling
+
+Keep every feature working
+
+
+Documentation
+
+Generate:
+
+README.md
+
+requirements.txt
+
+Installation Guide
+
+Usage Instructions
+
+Project Features
+
+Folder Structure
+
+Future Improvements
+
+
+Replit Configuration
+
+Configure the project so it runs correctly on Replit.
+
+Install all required packages automatically.
+
+Include:
+
+EasyOCR
+
+OpenCV
+
+NumPy
+
+Pillow
+
+tkinter (if supported)
+
+
+Make sure pressing the Run button launches the application without additional configuration.
+
+Shareable Version
+
+After finishing:
+
+Ensure the Replit project is completely runnable.
+
+Prepare it so I can simply click Share in Replit and send the project link to anyone.
+
+Include a polished README so visitors immediately understand the project.
+
+
+Important
+
+Do NOT remove any existing functionality.
+
+Only improve:
+
+UI
+
+Code organization
+
+Project structure
+
+Documentation
+
+User experience
+
+Maintainability
+
+
+The final result should look like a professional cybersecurity application suitable for a college final-year project or portfolio. Add activity logs and describe wt is my project without cofes

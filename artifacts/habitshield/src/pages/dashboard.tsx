@@ -1,152 +1,146 @@
-import { useGetScanStats, useGetScanHistory } from "@workspace/api-client-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldAlert, ShieldCheck, Activity, Search, Server } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
+import { useGetScanStats, getGetScanStatsQueryKey, useGetScanHistory, getGetScanHistoryQueryKey } from "@workspace/api-client-react";
+import { Shield, Image, FileText, MessageSquare, AlertTriangle, CheckCircle, Clock, TrendingUp } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+
+function StatCard({ icon: Icon, label, value, color, sub }: {
+  icon: typeof Shield;
+  label: string;
+  value: number | string;
+  color: string;
+  sub?: string;
+}) {
+  return (
+    <div className={`bg-card border border-card-border rounded-xl p-5 relative overflow-hidden group transition-all duration-200 hover:border-primary/40`}>
+      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${color === "blue" ? "bg-primary/5" : color === "red" ? "bg-destructive/5" : color === "green" ? "bg-green-500/5" : "bg-accent/5"}`} />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+            color === "blue" ? "bg-primary/20 text-primary" :
+            color === "red" ? "bg-destructive/20 text-destructive" :
+            color === "green" ? "bg-green-500/20 text-green-400" :
+            "bg-accent/20 text-accent"
+          }`}>
+            <Icon className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="text-3xl font-bold text-foreground tabular-nums">{value}</div>
+        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ScanTypeBadge({ type }: { type: string }) {
+  const config: Record<string, { label: string; className: string }> = {
+    screenshot: { label: "Screenshot", className: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+    file: { label: "File Hash", className: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+    sms: { label: "SMS", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+  };
+  const c = config[type] ?? { label: type, className: "bg-muted text-muted-foreground border-border" };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border ${c.className}`}>
+      {c.label}
+    </span>
+  );
+}
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useGetScanStats();
-  const { data: history, isLoading: historyLoading } = useGetScanHistory({ limit: 5 });
-
-  const chartData = stats ? [
-    { name: "Screenshot", scans: stats.screenshotScans, color: "hsl(var(--primary))" },
-    { name: "File Hash", scans: stats.fileScans, color: "hsl(var(--chart-2, 280 65% 60%))" },
-    { name: "SMS", scans: stats.smsScans, color: "hsl(var(--chart-3, 340 65% 60%))" }
-  ] : [];
+  const { data: stats, isLoading: statsLoading } = useGetScanStats({
+    query: { queryKey: getGetScanStatsQueryKey() },
+  });
+  const { data: history, isLoading: histLoading } = useGetScanHistory({ limit: 8 }, {
+    query: { queryKey: getGetScanHistoryQueryKey({ limit: 8 }) },
+  });
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2 flex items-center gap-2">
-          <Server className="w-8 h-8 text-primary" />
-          Command Center
-        </h1>
-        <p className="text-muted-foreground font-mono">Real-time threat detection metrics and system status.</p>
+    <div className="p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Overview</span>
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">Security Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Real-time threat monitoring and scan analytics</p>
       </div>
 
-      {statsLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-[120px] rounded-xl" />)}
-        </div>
-      ) : stats ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-border bg-card/50 backdrop-blur">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground font-mono uppercase">Total Scans</CardTitle>
-              <Activity className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-white font-mono">{stats.totalScans.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-destructive/30 bg-destructive/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-destructive/20 blur-xl rounded-full"></div>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-destructive font-mono uppercase">Threats Detected</CardTitle>
-              <ShieldAlert className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-destructive font-mono">{stats.threatsFound.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-success/30 bg-success/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-success/20 blur-xl rounded-full"></div>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-success font-mono uppercase">Clean Scans</CardTitle>
-              <ShieldCheck className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-success font-mono">{stats.cleanScans.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card/50 backdrop-blur">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground font-mono uppercase">Detection Rate</CardTitle>
-              <Search className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-white font-mono">
-                {stats.totalScans > 0 ? ((stats.threatsFound / stats.totalScans) * 100).toFixed(1) : 0}%
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {statsLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card border border-card-border rounded-xl p-5 h-28 animate-pulse">
+              <div className="h-3 bg-muted rounded w-20 mb-4" />
+              <div className="h-8 bg-muted rounded w-16" />
+            </div>
+          ))
+        ) : stats ? (
+          <>
+            <StatCard icon={TrendingUp} label="Total Scans" value={stats.totalScans} color="blue" sub="All time" />
+            <StatCard icon={AlertTriangle} label="Threats Found" value={stats.threatsFound} color="red" sub={`${stats.totalScans > 0 ? Math.round((stats.threatsFound / stats.totalScans) * 100) : 0}% of all scans`} />
+            <StatCard icon={CheckCircle} label="Clean Scans" value={stats.cleanScans} color="green" sub="No threats detected" />
+            <StatCard icon={Image} label="Screenshots" value={stats.screenshotScans} color="purple" sub="PII scans" />
+            <StatCard icon={FileText} label="File Hashes" value={stats.fileScans} color="blue" sub="SHA-256 computed" />
+            <StatCard icon={MessageSquare} label="SMS Analyzed" value={stats.smsScans} color="amber" sub="Phishing checks" />
+          </>
+        ) : (
+          <div className="col-span-full text-center text-muted-foreground py-8">No data available</div>
+        )}
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 border-border bg-card/50 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="font-mono text-sm uppercase tracking-wider text-muted-foreground">Scan Distribution</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            {statsLoading ? (
-              <Skeleton className="h-[250px] w-full" />
-            ) : (
-              <div className="h-[250px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                    <Tooltip 
-                      cursor={{ fill: 'hsl(var(--secondary))' }} 
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
-                    />
-                    <Bar dataKey="scans" radius={[4, 4, 0, 0]}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Recent Activity */}
+      <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+          </div>
+          <span className="text-xs text-muted-foreground">Last 8 scans</span>
+        </div>
 
-        <Card className="col-span-3 border-border bg-card/50 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="font-mono text-sm uppercase tracking-wider text-muted-foreground">Recent Activity</CardTitle>
-            <CardDescription>Latest telemetry data from sensors</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {historyLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        {histLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="px-6 py-4 flex items-center gap-4 animate-pulse">
+                <div className="w-16 h-5 bg-muted rounded" />
+                <div className="flex-1 h-4 bg-muted rounded w-3/4" />
+                <div className="w-12 h-4 bg-muted rounded" />
               </div>
-            ) : history && history.length > 0 ? (
-              <div className="space-y-4">
-                {history.map((event) => (
-                  <div key={event.id} className="flex items-center justify-between border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${event.threatDetected ? 'bg-destructive/20 text-destructive' : 'bg-success/20 text-success'}`}>
-                        {event.threatDetected ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white truncate max-w-[150px] sm:max-w-[200px]" title={event.summary}>
-                          {event.summary}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-mono">
-                          {format(new Date(event.scannedAt), 'MMM dd, HH:mm:ss')}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="font-mono text-[10px]">
-                      {event.scanType}
-                    </Badge>
-                  </div>
-                ))}
+            ))}
+          </div>
+        ) : history && history.length > 0 ? (
+          <div className="divide-y divide-border">
+            {history.map((event) => (
+              <div key={event.id} data-testid={`activity-row-${event.id}`} className="px-6 py-4 flex items-center gap-4 hover:bg-muted/30 transition-colors">
+                <ScanTypeBadge type={event.scanType} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground truncate">{event.summary}</p>
+                  {event.filename && (
+                    <p className="text-xs text-muted-foreground truncate font-mono">{event.filename}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {event.threatDetected ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-destructive">
+                      <AlertTriangle className="w-3 h-3" /> Threat
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-green-400">
+                      <CheckCircle className="w-3 h-3" /> Clean
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDistanceToNow(new Date(event.scannedAt), { addSuffix: true })}
+                  </span>
+                </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                <Activity className="w-8 h-8 mb-2 opacity-20" />
-                <p className="text-sm">No activity recorded yet.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="px-6 py-12 text-center">
+            <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="text-sm text-muted-foreground">No scans yet. Start scanning to see activity here.</p>
+          </div>
+        )}
       </div>
     </div>
   );
