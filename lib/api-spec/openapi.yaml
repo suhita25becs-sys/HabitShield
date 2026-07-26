@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: HabitShield Cybersecurity Suite API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: scan
+    description: Security scanning operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,121 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /scan/screenshot:
+    post:
+      operationId: scanScreenshot
+      tags: [scan]
+      summary: Scan an image for sensitive data
+      description: Upload an image and detect emails and phone numbers via OCR-style pattern matching
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ScreenshotScanInput"
+      responses:
+        "200":
+          description: Scan complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scan/file:
+    post:
+      operationId: scanFile
+      tags: [scan]
+      summary: Compute SHA-256 hash of a file
+      description: Upload a file and get its SHA-256 hash
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FileScanInput"
+      responses:
+        "200":
+          description: Hash computed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileScanResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scan/sms:
+    post:
+      operationId: scanSms
+      tags: [scan]
+      summary: Analyze SMS message for phishing
+      description: Analyze a text message and detect potential phishing or scam patterns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmsScanInput"
+      responses:
+        "200":
+          description: Analysis complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmsScanResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scan/history:
+    get:
+      operationId: getScanHistory
+      tags: [scan]
+      summary: Get recent scan activity log
+      description: Returns the most recent scan events in reverse chronological order
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Activity log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScanEvent"
+
+  /scan/stats:
+    get:
+      operationId: getScanStats
+      tags: [scan]
+      summary: Get dashboard statistics
+      description: Returns aggregated stats for the dashboard overview
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +151,178 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ScreenshotScanInput:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+        - file
+
+    FileScanInput:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+        - file
+
+    SmsScanInput:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    ScanFinding:
+      type: object
+      properties:
+        type:
+          type: string
+          description: "Type of finding e.g. Email, Phone"
+        value:
+          type: string
+          description: The matched text
+      required:
+        - type
+        - value
+
+    ScanResult:
+      type: object
+      properties:
+        id:
+          type: string
+        scanType:
+          type: string
+        filename:
+          type: string
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanFinding"
+        threatDetected:
+          type: boolean
+        scannedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scanType
+        - filename
+        - findings
+        - threatDetected
+        - scannedAt
+
+    FileScanResult:
+      type: object
+      properties:
+        id:
+          type: string
+        scanType:
+          type: string
+        filename:
+          type: string
+        sha256:
+          type: string
+        fileSize:
+          type: integer
+        scannedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scanType
+        - filename
+        - sha256
+        - fileSize
+        - scannedAt
+
+    SmsScanResult:
+      type: object
+      properties:
+        id:
+          type: string
+        scanType:
+          type: string
+        threatDetected:
+          type: boolean
+        verdict:
+          type: string
+          description: "safe | scam | suspicious"
+        triggers:
+          type: array
+          items:
+            type: string
+          description: Keywords that triggered the detection
+        messagePreview:
+          type: string
+        scannedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scanType
+        - threatDetected
+        - verdict
+        - triggers
+        - messagePreview
+        - scannedAt
+
+    ScanEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        scanType:
+          type: string
+          description: "screenshot | file | sms"
+        filename:
+          type: ["string", "null"]
+        threatDetected:
+          type: boolean
+        summary:
+          type: string
+        scannedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scanType
+        - filename
+        - threatDetected
+        - summary
+        - scannedAt
+
+    ScanStats:
+      type: object
+      properties:
+        totalScans:
+          type: integer
+        threatsFound:
+          type: integer
+        screenshotScans:
+          type: integer
+        fileScans:
+          type: integer
+        smsScans:
+          type: integer
+        cleanScans:
+          type: integer
+      required:
+        - totalScans
+        - threatsFound
+        - screenshotScans
+        - fileScans
+        - smsScans
+        - cleanScans

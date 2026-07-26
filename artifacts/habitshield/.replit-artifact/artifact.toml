@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "HabitShield"
+version = "1.0.0"
+id = "artifacts/habitshield"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24824
+
+[services.development]
+run = "pnpm --filter @workspace/habitshield run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/habitshield", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/habitshield/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24824"
+BASE_PATH = "/"
